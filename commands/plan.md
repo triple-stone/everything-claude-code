@@ -33,6 +33,28 @@ The planner agent will:
 5. **Estimate complexity** (High/Medium/Low)
 6. **Present the plan** and WAIT for your explicit confirmation
 
+## Confirmation Flow
+
+### Step 1: User confirms plan
+User says: "yes", "ok", "好的", "确认"
+
+### Step 2: Agent saves plan
+Agent automatically:
+- Calls SavePlan tool
+- Saves to `.claude/plans/plan-YYYYMMDD-description.md`
+- Confirms save location
+
+### Step 3: Agent asks about execution
+Agent: "Ready to start execution? Say '开始' or '执行' to begin."
+
+### Step 4: User confirms execution
+User says: "开始", "执行", "start", "implement"
+
+### Step 5: Agent creates todo list and starts implementation
+Agent:
+- Creates TodoWrite with all tasks
+- Starts first task using TDD methodology
+
 ## Example Usage
 
 ```
@@ -88,12 +110,21 @@ Agent (planner):
 - Testing: 2-3 hours
 - Total: 9-13 hours
 
-**WAITING FOR CONFIRMATION**: Proceed with this plan? (yes/no/modify)
+WAITING FOR CONFIRMATION: Confirm this plan? (yes/no/modify)
 ```
 
 ## Important Notes
 
-**CRITICAL**: The planner agent will **NOT** write any code until you explicitly confirm the plan with "yes" or "proceed" or similar affirmative response.
+**CRITICAL**: The planner agent follows a TWO-STEP process:
+
+1. **Confirmation Stage**: User says "yes" → Agent saves plan using SavePlan tool
+2. **Execution Stage**: User says "开始" or "执行" → Agent creates todos and starts coding
+
+**Common mistake**: Agent might create todo list on "yes" - this is WRONG
+- "yes" means save the plan
+- "开始" or "执行" means start implementation
+
+**Auto-Save**: Plan is automatically saved to `.claude/plans/` for tracking in project snapshots.
 
 If you want changes, respond with:
 - "modify: [your changes]"
