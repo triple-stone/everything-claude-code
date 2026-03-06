@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目快照可视化</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #09090b 0%, #18181b 50%, #09090b 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(39, 39, 42, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(63, 63, 70, 0.3);
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-zinc-100 antialiased p-4 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">项目快照可视化</h1>
+                <p class="text-sm text-zinc-500 mt-1" id="project-info">Loading...</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="px-4 py-2 bg-zinc-900/80 rounded-lg border border-zinc-800">
+                    <p class="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mb-1">最后更新</p>
+                    <p class="text-sm font-mono text-emerald-400" id="last-updated">-</p>
+                </div>
+                <button onclick="refreshData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>刷新
+                </button>
+            </div>
+        </header>
+
+        <!-- Top Metrics -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10" id="top-metrics">
+            <div class="glass-card rounded-xl p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">计划</p>
+                        <p class="text-2xl font-bold text-blue-400" id="metric-plans">-</p>
+                    </div>
+                    <i data-lucide="folder" class="w-8 h-8 text-blue-400/30"></i>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">需求</p>
+                        <p class="text-2xl font-bold text-purple-400" id="metric-requirements">-</p>
+                    </div>
+                    <i data-lucide="list-todo" class="w-8 h-8 text-purple-400/30"></i>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">任务</p>
+                        <p class="text-2xl font-bold text-emerald-400" id="metric-tasks">-</p>
+                    </div>
+                    <i data-lucide="check-circle" class="w-8 h-8 text-emerald-400/30"></i>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">模块</p>
+                        <p class="text-2xl font-bold text-orange-400" id="metric-modules">-</p>
+                    </div>
+                    <i data-lucide="layers" class="w-8 h-8 text-orange-400/30"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left Column -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- Iterations -->
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-lg font-bold flex items-center gap-2">
+                            <i data-lucide="git-merge" class="text-blue-400"></i> 迭代管理
+                        </h2>
+                        <span class="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded" id="iteration-count">0 迭代</span>
+                    </div>
+                    <div class="space-y-3" id="iteration-list"></div>
+                </div>
+
+                <!-- Modules -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="text-lg font-bold flex items-center gap-2 mb-6">
+                        <i data-lucide="layers" class="text-emerald-400"></i> 模块状态
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="module-grid"></div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="lg:col-span-4 space-y-6">
+                <!-- Requirements -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="text-lg font-bold flex items-center gap-2 mb-6">
+                        <i data-lucide="list-todo" class="text-purple-400"></i> 需求列表
+                    </h2>
+                    <div class="space-y-3" id="requirement-list"></div>
+                </div>
+
+                <!-- TDD Overview -->
+                <div class="glass-card rounded-2xl p-6 bg-purple-500/5 border-purple-500/20">
+                    <h2 class="text-lg font-bold flex items-center gap-2 mb-4 text-purple-400">
+                        <i data-lucide="flask-conical"></i> TDD 总览
+                    </h2>
+                    <div class="space-y-3" id="tdd-overview"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Project Snapshot Dashboard - Dynamic Data Loader
+         * Compatible with Tailwind CSS and Lucide icons
+         */
+
+        let currentData = null;
+        let collapsedIterations = new Set();
+
+        const statusConfig = {
+            'completed': { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: '已完成' },
+            'done': { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: '已完成' },
+            'in_progress': { bg: 'bg-blue-500/10', text: 'text-blue-400', label: '进行中' },
+            'todo': { bg: 'bg-zinc-800', text: 'text-zinc-400', label: '待处理' },
+            'not_started': { bg: 'bg-zinc-800', text: 'text-zinc-400', label: '未开始' },
+            'delayed': { bg: 'bg-red-500/10', text: 'text-red-400', label: '延期' },
+            'critical': { bg: 'bg-red-500', text: 'text-white', label: '紧急' },
+            'confirmed': { bg: 'bg-blue-500/10', text: 'text-blue-400', label: '已确认' },
+            'pending': { bg: 'bg-yellow-500/10', text: 'text-yellow-400', label: '待定' },
+            'optimized': { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: '完美' },
+            'has_issue': { bg: 'bg-red-500/10', text: 'text-red-400', label: '有问题' }
+        };
+
+        const priorityLabels = {
+            'critical': '紧急',
+            'high': '高',
+            'medium': '中',
+            'low': '低'
+        };
+
+        function getStatusBadge(status) {
+            const key = status ? status.toLowerCase() : 'pending';
+            const cfg = statusConfig[key] || { bg: 'bg-zinc-800', text: 'text-zinc-400', label: status || '未知' };
+            return `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${cfg.bg} ${cfg.text}">${cfg.label}</span>`;
+        }
+
+        /**
+         * Fetch all plans data from API
+         */
+        async function fetchPlansData() {
+            try {
+                const response = await fetch('/api/plans');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch plans data');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching plans:', error);
+                showError('Failed to load dashboard data');
+                return null;
+            }
+        }
+
+        /**
+         * Render UI
+         */
+        function renderUI(data) {
+            currentData = data;
+
+            // Update header
+            document.getElementById('last-updated').textContent = new Date(data.timestamp).toLocaleString('zh-CN');
+            document.getElementById('project-info').textContent = data.project_name || 'Project';
+
+            // Top metrics
+            const totalPlans = data.plans?.length || 0;
+            const totalReqs = data.requirements?.length || 0;
+            const totalTasks = (data.iterations || []).reduce((sum, iter) => sum + (iter.tasks?.length || 0), 0);
+            const totalModules = data.modules?.length || 0;
+
+            document.getElementById('metric-plans').textContent = totalPlans;
+            document.getElementById('metric-requirements').textContent = totalReqs;
+            document.getElementById('metric-tasks').textContent = totalTasks;
+            document.getElementById('metric-modules').textContent = totalModules;
+
+            // Iterations
+            document.getElementById('iteration-count').textContent = `${data.iterations?.length || 0} 迭代`;
+            document.getElementById('iteration-list').innerHTML = renderIterations(data.iterations || []);
+
+            // Requirements
+            document.getElementById('requirement-list').innerHTML = renderRequirements(data.requirements || []);
+
+            // Modules
+            document.getElementById('module-grid').innerHTML = renderModules(data.modules || []);
+
+            // TDD Overview
+            document.getElementById('tdd-overview').innerHTML = renderTDDOverview(data.iterations || []);
+
+            // Initialize icons
+            lucide.createIcons();
+        }
+
+        function renderIterations(iterations) {
+            if (iterations.length === 0) {
+                return '<p class="text-sm text-zinc-500 text-center py-4">暂无迭代</p>';
+            }
+
+            return iterations.map(iter => {
+                const taskList = iter.tasks || [];
+                const completedTasks = taskList.filter(t => t.status === 'done' || t.status === 'completed').length;
+                const progress = taskList.length > 0 ? (completedTasks / taskList.length * 100).toFixed(0) : 0;
+                const isCurrent = iter.iteration_id === currentData.current_iteration;
+                const isCollapsed = !isCurrent && collapsedIterations.has(iter.iteration_id);
+
+                return `
+                    <div class="bg-zinc-900/40 rounded-xl border ${isCurrent ? 'border-blue-500/30 bg-blue-500/5' : 'border-zinc-800/50'} overflow-hidden">
+                        <div class="p-4 border-b border-zinc-800/50 cursor-pointer hover:bg-zinc-800/30 transition-colors" onclick="toggleIteration('${iter.iteration_id}')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-3">
+                                    ${isCurrent ? '<span class="text-xs bg-blue-500 text-white px-2 py-0.5 rounded font-medium">当前</span>' : ''}
+                                    <i data-lucide="${isCollapsed ? 'chevron-right' : 'chevron-down'}" class="w-4 h-4 text-zinc-500 transition-transform"></i>
+                                    <h3 class="font-bold text-base text-zinc-200">${iter.iteration_name || iter.iteration_id}</h3>
+                                </div>
+                                ${getStatusBadge(iter.status)}
+                            </div>
+                            <div class="flex items-center gap-4 text-xs text-zinc-500">
+                                <span><i data-lucide="calendar" class="w-3 h-3 inline mr-1"></i>${iter.timeline || '-'}</span>
+                                <span><i data-lucide="list-todo" class="w-3 h-3 inline mr-1"></i>${taskList.length} 个任务</span>
+                            </div>
+                        </div>
+                        <div class="${isCollapsed ? 'hidden' : ''}">
+                            <div class="px-4 py-3 bg-zinc-900/20">
+                                <div class="flex items-center justify-between text-xs mb-1">
+                                    <span class="text-zinc-400">任务进度</span>
+                                    <span class="text-zinc-300">${completedTasks}/${taskList.length} 已完成 (${progress}%)</span>
+                                </div>
+                                <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-gradient-to-r from-blue-500 to-emerald-500 h-full transition-all duration-500" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                            <div class="p-4 space-y-2">
+                                ${taskList.length > 0 ? taskList.map(task => renderTask(task)).join('') : '<p class="text-sm text-zinc-500 text-center py-4">暂无任务</p>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTask(task) {
+            const tdd = task.tdd || {};
+            const hasTDD = tdd.test_cases && tdd.test_cases.length > 0;
+            const coverage = tdd.coverage_actual || 0;
+            const targetCoverage = tdd.coverage_target || 80;
+
+            return `
+                <div class="bg-zinc-900/40 rounded-lg border border-zinc-800/30 overflow-hidden">
+                    <div class="p-3 ${hasTDD ? 'cursor-pointer hover:bg-zinc-800/30 transition-colors' : ''}" ${hasTDD ? `onclick="toggleTaskTDD('${task.task_id}')"` : ''}>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-1.5 h-6 rounded-full ${task.status === 'done' || task.status === 'completed' ? 'bg-emerald-500' : task.status === 'in_progress' ? 'bg-blue-500' : 'bg-zinc-600'}"></div>
+                                <div>
+                                    <p class="font-medium text-sm text-zinc-200">${task.task_name}</p>
+                                    <div class="flex items-center gap-2 mt-1 text-xs text-zinc-500">
+                                        <span class="font-mono">${task.task_id}</span>
+                                        ${task.priority ? `<span class="px-1.5 py-0.5 rounded ${task.priority === 'high' || task.priority === 'critical' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-700/50 text-zinc-400'}">${priorityLabels[task.priority] || task.priority}</span>` : ''}
+                                        ${hasTDD ? `<span class="text-blue-400"><i data-lucide="flask-conical" class="w-3 h-3 inline"></i> ${tdd.test_cases.length} 测试</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                ${getStatusBadge(task.status)}
+                                ${hasTDD ? `<i data-lucide="chevron-down" id="icon-${task.task_id}" class="w-4 h-4 text-zinc-500 transition-transform"></i>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${hasTDD ? `
+                    <div id="tdd-${task.task_id}" class="hidden border-t border-zinc-800/50">
+                        <div class="p-3 bg-zinc-900/60 space-y-3">
+                            ${tdd.test_file ? `
+                            <div class="flex items-center gap-2 text-xs">
+                                <i data-lucide="file-code" class="w-3 h-3 text-blue-400"></i>
+                                <span class="text-zinc-400">测试文件:</span>
+                                <code class="px-2 py-0.5 bg-zinc-800 rounded text-blue-300">${tdd.test_file}</code>
+                            </div>
+                            ` : ''}
+                            <div>
+                                <div class="flex items-center justify-between text-xs mb-1">
+                                    <span class="text-zinc-400">覆盖率</span>
+                                    <span class="text-zinc-300">${coverage}% / ${targetCoverage}%</span>
+                                </div>
+                                <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                                    <div class="h-full ${coverage >= targetCoverage ? 'bg-emerald-500' : 'bg-yellow-500'}" style="width: ${coverage}%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-zinc-400 mb-2 flex items-center gap-1">
+                                    <i data-lucide="check-square" class="w-3 h-3"></i>
+                                    测试用例 (${tdd.test_cases.length})
+                                </p>
+                                <div class="space-y-1">
+                                    ${tdd.test_cases.map(tc => `
+                                    <div class="flex items-start gap-2 text-xs p-2 bg-zinc-800/50 rounded">
+                                        <span class="text-emerald-400 mt-0.5">✓</span>
+                                        <span class="text-zinc-300">${tc}</span>
+                                    </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderRequirements(requirements) {
+            if (requirements.length === 0) {
+                return '<p class="text-sm text-zinc-500 text-center py-4">暂无需求</p>';
+            }
+
+            return requirements.map(req => `
+                <div class="bg-zinc-900/40 rounded-lg border border-zinc-800/30 p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-mono text-purple-400">${req.requirement_id}</span>
+                            ${getStatusBadge(req.status)}
+                        </div>
+                        <span class="text-[10px] px-2 py-0.5 rounded ${req.priority === 'high' || req.priority === 'critical' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-700/50 text-zinc-400'}">${priorityLabels[req.priority] || req.priority}</span>
+                    </div>
+                    <p class="text-sm text-zinc-200 mb-2">${req.title || req.description || ''}</p>
+                    ${req.acceptance_criteria ? `
+                    <div class="text-xs text-zinc-500">
+                        <span class="font-medium">验收标准:</span> ${req.acceptance_criteria.length} 项
+                    </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderModules(modules) {
+            if (modules.length === 0) {
+                return '<p class="text-sm text-zinc-500 text-center py-4 col-span-2">暂无模块</p>';
+            }
+
+            return modules.map(mod => {
+                const completedFeatures = (mod.features || []).filter(f => f.status === 'completed').length;
+                const totalFeatures = (mod.features || []).length;
+                const completionRate = Math.round((mod.completion_rate || 0) * 100);
+
+                return `
+                    <div class="bg-zinc-900/40 rounded-lg border border-zinc-800/30 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <p class="font-bold text-sm text-zinc-200">${mod.module_name}</p>
+                                <p class="text-xs text-zinc-500 font-mono">${mod.module_id}</p>
+                            </div>
+                            ${getStatusBadge(mod.status)}
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-zinc-400">完成度</span>
+                                <span class="text-zinc-300">${completionRate}%</span>
+                            </div>
+                            <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-gradient-to-r from-emerald-500 to-green-500 h-full" style="width: ${completionRate}%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-zinc-500">
+                                <span>功能</span>
+                                <span>${completedFeatures}/${totalFeatures}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTDDOverview(iterations) {
+            const allTasks = iterations.flatMap(iter => iter.tasks || []);
+            const tasksWithTDD = allTasks.filter(t => t.tdd && t.tdd.test_cases && t.tdd.test_cases.length > 0);
+            const totalTestCases = tasksWithTDD.reduce((sum, t) => sum + (t.tdd.test_cases?.length || 0), 0);
+            const avgCoverage = tasksWithTDD.length > 0 ?
+                tasksWithTDD.reduce((sum, t) => sum + (t.tdd.coverage_actual || 0), 0) / tasksWithTDD.length : 0;
+
+            return `
+                <div class="flex items-center justify-between p-3 bg-zinc-900/40 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="flask-conical" class="w-4 h-4 text-purple-400"></i>
+                        <span class="text-sm text-zinc-400">任务总数</span>
+                    </div>
+                    <span class="text-lg font-bold">${allTasks.length}</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-zinc-900/40 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
+                        <span class="text-sm text-zinc-400">含 TDD</span>
+                    </div>
+                    <span class="text-lg font-bold">${tasksWithTDD.length}</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-zinc-900/40 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="list" class="w-4 h-4 text-blue-400"></i>
+                        <span class="text-sm text-zinc-400">测试用例</span>
+                    </div>
+                    <span class="text-lg font-bold">${totalTestCases}</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-zinc-900/40 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="target" class="w-4 h-4 text-yellow-400"></i>
+                        <span class="text-sm text-zinc-400">平均覆盖率</span>
+                    </div>
+                    <span class="text-lg font-bold">${avgCoverage.toFixed(0)}%</span>
+                </div>
+            `;
+        }
+
+        // Expose functions to global scope
+        window.toggleIteration = function(iterationId) {
+            if (collapsedIterations.has(iterationId)) {
+                collapsedIterations.delete(iterationId);
+            } else {
+                collapsedIterations.add(iterationId);
+            }
+            if (currentData) renderUI(currentData);
+        };
+
+        window.toggleTaskTDD = function(taskId) {
+            const tddDiv = document.getElementById(`tdd-${taskId}`);
+            const icon = document.getElementById(`icon-${taskId}`);
+
+            if (tddDiv) {
+                if (tddDiv.classList.contains('hidden')) {
+                    tddDiv.classList.remove('hidden');
+                    if (icon) icon.style.transform = 'rotate(180deg)';
+                } else {
+                    tddDiv.classList.add('hidden');
+                    if (icon) icon.style.transform = 'rotate(0deg)';
+                }
+            }
+        };
+
+        window.showError = function(message) {
+            document.querySelector('.max-w-7xl').innerHTML = `
+                <div class="glass-card rounded-2xl p-12 text-center">
+                    <i data-lucide="alert-circle" class="w-16 h-16 text-red-400 mx-auto mb-4"></i>
+                    <h2 class="text-xl font-bold text-zinc-200 mb-2">加载失败</h2>
+                    <p class="text-zinc-400 mb-6">${message}</p>
+                    <button onclick="refreshData()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>重试
+                    </button>
+                </div>
+            `;
+            lucide.createIcons();
+        };
+
+        window.refreshData = async function() {
+            const data = await fetchPlansData();
+            if (data) {
+                renderUI(data);
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshData();
+
+            // Auto-refresh every 30 seconds
+            setInterval(refreshData, 30000);
+        });
+    </script>
+</body>
+</html>

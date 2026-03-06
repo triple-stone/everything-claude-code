@@ -356,8 +356,8 @@ git clone https://github.com/affaan-m/everything-claude-code.git
 # 将代理复制到你的 Claude 配置
 cp everything-claude-code/agents/*.md ~/.claude/agents/
 
-# 复制规则
-cp everything-claude-code/rules/*.md ~/.claude/rules/
+# 复制规则（包括所有子目录）
+cp -r everything-claude-code/rules/* ~/.claude/rules/
 
 # 复制命令
 cp everything-claude-code/commands/*.md ~/.claude/commands/
